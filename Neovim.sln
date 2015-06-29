@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neovim", "Neovim\Neovim.csproj", "{CFB07A1A-B4D2-46B9-8827-A5A756E69FFF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Neovim-Client", "Neovim\Neovim-Client.csproj", "{CFB07A1A-B4D2-46B9-8827-A5A756E69FFF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{30F24225-82A8-467B-8AC7-0474A170BD14}"
 	ProjectSection(SolutionItems) = preProject
@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{30F242
 		.nuget\NuGet.exe = .nuget\NuGet.exe
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NeovimGUI", "NeovimGUI\NeovimGUI.csproj", "{0C97D01D-C59B-4935-8178-AAA77C45CE9A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,6 +24,10 @@ Global
 		{CFB07A1A-B4D2-46B9-8827-A5A756E69FFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CFB07A1A-B4D2-46B9-8827-A5A756E69FFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CFB07A1A-B4D2-46B9-8827-A5A756E69FFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C97D01D-C59B-4935-8178-AAA77C45CE9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C97D01D-C59B-4935-8178-AAA77C45CE9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C97D01D-C59B-4935-8178-AAA77C45CE9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C97D01D-C59B-4935-8178-AAA77C45CE9A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
