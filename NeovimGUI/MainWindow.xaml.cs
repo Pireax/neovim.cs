@@ -26,12 +26,11 @@ namespace NeovimGUI
         {
             InitializeComponent();
 
-            _renderProperties = new RenderProperties();
-            _term = new Terminal(_renderProperties);
-            TerminalContainer.Children.Add(_term);
+            //_renderProperties = new RenderProperties();
+            //_term = new Terminal(_renderProperties);
+            //TerminalContainer.Children.Add(_term);
         }
 
-        private Terminal _term;
         private NeovimClient _neovim;
         private RenderProperties _renderProperties;
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -44,8 +43,8 @@ namespace NeovimGUI
             Grid.SizeChanged += Window_SizeChanged;
         }
 
-        private delegate void UpdateTerminalWindowDelegate(Action<Terminal> message);
-        private void UpdateTerminal(Action<Terminal> message)
+        private delegate void UpdateTerminalWindowDelegate(Action<TerminalTst> message);
+        private void UpdateTerminal(Action<TerminalTst> message)
         {
             if (!_term.Dispatcher.CheckAccess())
             {
@@ -88,7 +87,7 @@ namespace NeovimGUI
                         break;
 
                     case "highlight_set":
-                        Color fg = Color.FromRgb(255, 255, 255);
+                        System.Drawing.Color fg = System.Drawing.Color.White;
                         bool bold = false;
                         bool italic = false;
 
@@ -105,7 +104,7 @@ namespace NeovimGUI
                                     byte r = (byte)(c >> 16);
                                     byte g = (byte)(c >> 8);
                                     byte b = (byte)(c >> 0);
-                                    fg = Color.FromRgb(r, g, b);
+                                    fg = System.Drawing.Color.FromArgb(r, g, b);
                                 }
                                 else if (str == "bold")
                                     bold = entry.Value.AsBoolean();
@@ -136,7 +135,7 @@ namespace NeovimGUI
                         break;
 
                     case "cursor_goto":
-                        UpdateTerminal((t) => t.TerminalCursor.MoveCaret(args[0][0].AsInt32(), args[0][1].AsInt32()));
+                        UpdateTerminal((t) => t.MoveCaret(args[0][0].AsInt32(), args[0][1].AsInt32()));
                         break;
 
                     case "scroll":
@@ -147,11 +146,11 @@ namespace NeovimGUI
                         break;
 
                     case "normal_mode":
-                        UpdateTerminal((t) => t.TerminalCursor.CaretRectangle.Width = t.Cells[0][0].Width);
+                        UpdateTerminal((t) => t.Caret.Width = t._cellWidth);
                         break;
 
                     case "insert_mode":
-                        UpdateTerminal((t) => t.TerminalCursor.CaretRectangle.Width = 5);
+                        UpdateTerminal((t) => t.Caret.Width = 3);
                         break;
 
                     case "busy_start":
@@ -167,11 +166,12 @@ namespace NeovimGUI
                         break;
                 }
             }
+            UpdateTerminal((t) => t.SwapBuffers());
         }
 
         private void term_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.LeftShift || e.Key == Key.RightShift || e.Key == Key.LeftAlt|| 
+            if (e.Key == Key.LeftShift || e.Key == Key.RightShift || e.Key == Key.LeftAlt ||
                 e.Key == Key.RightAlt || e.Key == Key.CapsLock || e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl)
                 return;
 
@@ -184,11 +184,11 @@ namespace NeovimGUI
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            int rows = (int)Math.Round(e.NewSize.Height / _term.Cell.Height);
-            int columns = (int) Math.Round(e.NewSize.Width/_term.Cell.Width);
+            //int rows = (int)Math.Round(e.NewSize.Height / _term.Cell.Height);
+            //int columns = (int) Math.Round(e.NewSize.Width/_term.Cell.Width);
 
-            if (_term.Cells.Count != rows && _term.Cells[0].Count != columns)
-                _neovim.ui_try_resize(columns, rows);
+            //if (_term.Cells.Count != rows && _term.Cells[0].Count != columns)
+            //    _neovim.ui_try_resize(columns, rows);
         }
     }
 }
