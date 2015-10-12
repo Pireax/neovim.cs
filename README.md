@@ -1,6 +1,6 @@
 # neovim.cs
 A C# client for talking to [Neovim.](https://github.com/neovim/neovim)
-This also includes a WPF terminal (wip) as an example of it in use.
+This also includes a WPF terminal example to show it in action.
 
 To use the client simply create a new NeovimClient instance with the path to the neovim executable as argument.
 This creates a new neovim process and takes over it's Input and Output.
