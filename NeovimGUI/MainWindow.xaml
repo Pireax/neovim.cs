@@ -1,0 +1,18 @@
+﻿<Window x:Class="NeovimGUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NeovimGUI"
+        Title="Neovim" Height="467.2" Width="986.6" Loaded="Window_Loaded">
+    <Grid x:Name="Grid">
+        <Menu VerticalAlignment="Top">
+            <MenuItem Header="File"></MenuItem>
+            <MenuItem Header="Edit"></MenuItem>
+            <MenuItem Header="Tools"></MenuItem>
+            <MenuItem Header="Help"></MenuItem>
+        </Menu>
+        <Grid x:Name="TerminalContainer" Margin="0,18,0,0">
+            <local:TerminalTst x:Name="_term" Margin="0,0,22.4,23.6">
+            </local:TerminalTst>
+        </Grid>
+    </Grid>
+</Window>
