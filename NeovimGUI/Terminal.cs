@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -32,34 +31,33 @@ namespace NeovimGUI
 
             public void MoveCaret(int row, int col)
             {
-                this.Row = row;
-                this.Column = col;
-                this.CaretRectangle.Text = _term.Cells[row][col].Text;
-                Canvas.SetLeft(this.CaretRectangle, Canvas.GetLeft(_term.Cells[row][col]));
-                Canvas.SetTop(this.CaretRectangle, Canvas.GetTop(_term.Cells[row][col]));
+                Row = row;
+                Column = col;
+                CaretRectangle.Text = _term.Cells[row][col].Text;
+                SetLeft(CaretRectangle, GetLeft(_term.Cells[row][col]));
+                SetTop(CaretRectangle, GetTop(_term.Cells[row][col]));
             }
 
             public void MoveCaretRight()
             {
-                if (this.Column == _term.Cells[0].Count - 1)
-                    MoveCaret(this.Row + 1, 0);
+                if (Column == _term.Cells[0].Count - 1)
+                    MoveCaret(Row + 1, 0);
                 else
-                    MoveCaret(this.Row, this.Column + 1);
+                    MoveCaret(Row, Column + 1);
             }
 
             public void MoveCaretLeft()
             {
-                if (this.Column == 0)
-                    MoveCaret(this.Row - 1, _term.Cells[0].Count - 1);
+                if (Column == 0)
+                    MoveCaret(Row - 1, _term.Cells[0].Count - 1);
                 else
-                    MoveCaret(this.Row, this.Column - 1);
+                    MoveCaret(Row, Column - 1);
             }
         }
 
         public Window ParentWindow { get; set; }
         public List<List<Cell>> Cells;
-        public Caret TerminalCursor;
-
+        public Caret TCursor;
         private RenderProperties _renderProperties;
 
         public Cell Cell
@@ -67,9 +65,9 @@ namespace NeovimGUI
             get { return Cells[0][0]; }
         }
 
-        public Terminal(RenderProperties renderProperties)
+        public Terminal()
         {
-            _renderProperties = renderProperties;
+            _renderProperties = new RenderProperties();
 
             Cells = new List<List<Cell>>(24);
             for (int i = 0; i < 24; i++)
@@ -77,22 +75,22 @@ namespace NeovimGUI
                 Cells.Add(new List<Cell>(80));
                 for (int j = 0; j < 80; j++)
                 {
-                    Cells[i].Add(new Cell(renderProperties));
+                    Cells[i].Add(new Cell(_renderProperties));
                     //Cells[i][j].UseLayoutRounding = true;
                     Cells[i][j].Text = "X";
-                    this.Children.Add(Cells[i][j]);
-                    Canvas.SetLeft(Cells[i][j], j * Cell.Width);
-                    Canvas.SetTop(Cells[i][j], i * Cell.Height);
-                    Panel.SetZIndex(Cells[i][j], 0);
+                    Children.Add(Cells[i][j]);
+                    SetLeft(Cells[i][j], j * Cell.Width);
+                    SetTop(Cells[i][j], i * Cell.Height);
+                    SetZIndex(Cells[i][j], 0);
                 }
             }
 
-            TerminalCursor = new Caret(this);
-            TerminalCursor.CaretRectangle.Width = Cells[0][0].Width;
-            TerminalCursor.CaretRectangle.Height = Cells[0][0].Height;
-            this.Children.Add(TerminalCursor.CaretRectangle);
-            TerminalCursor.MoveCaret(0, 0);
-            Panel.SetZIndex(TerminalCursor.CaretRectangle, 1);
+            TCursor = new Caret(this);
+            TCursor.CaretRectangle.Width = Cells[0][0].Width;
+            TCursor.CaretRectangle.Height = Cells[0][0].Height;
+            Children.Add(TCursor.CaretRectangle);
+            TCursor.MoveCaret(0, 0);
+            SetZIndex(TCursor.CaretRectangle, 1);
         }
 
         public void Scroll(sbyte direction)
@@ -146,16 +144,16 @@ namespace NeovimGUI
         public void Highlight(Color foreground, bool bold, bool italic)
         {
             _renderProperties.Foreground = new SolidColorBrush(foreground);
-            _renderProperties.TypeFace = new Typeface(new FontFamily("Courier"), italic ? FontStyles.Italic : FontStyles.Normal, bold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal);
-            Cells[TerminalCursor.Row][TerminalCursor.Column].InvalidateVisual();
+            _renderProperties.TypeFace = new Typeface(new FontFamily("Courier New"), italic ? FontStyles.Italic : FontStyles.Normal, bold ? FontWeights.Bold : FontWeights.Normal, FontStretches.Normal);
+            Cells[TCursor.Row][TCursor.Column].InvalidateVisual();
         }
 
         public void PutText(string text)
         {
             for (int i = 0; i < text.Length; i++)
             {
-                Cells[TerminalCursor.Row][TerminalCursor.Column].Text = text[i].ToString();
-                TerminalCursor.MoveCaretRight();
+                Cells[TCursor.Row][TCursor.Column].Text = text[i].ToString();
+                TCursor.MoveCaretRight();
             }
         }
 
@@ -170,9 +168,9 @@ namespace NeovimGUI
 
         public void ClearToEnd()
         {
-            for (int i = TerminalCursor.Column; i < Cells[0].Count; i++)
+            for (int i = TCursor.Column; i < Cells[0].Count; i++)
             {
-                Cells[TerminalCursor.Row][i].Text = "";
+                Cells[TCursor.Row][i].Text = "";
             }
         }
 
@@ -229,10 +227,10 @@ namespace NeovimGUI
 
         public RenderProperties()
         {
-            this.Enabled = true;
-            this.Background = new SolidColorBrush(Color.FromRgb(50, 50, 50));
-            this.Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-            this.TypeFace = new Typeface(new FontFamily("Courier"), FontStyles.Normal, FontWeights.Normal, FontStretches.Condensed);
+            Enabled = true;
+            Background = new SolidColorBrush(Color.FromRgb(50, 50, 50));
+            Foreground = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+            TypeFace = new Typeface(new FontFamily("Courier New"), FontStyles.Normal, FontWeights.Normal, FontStretches.Condensed);
         }
     }
 
@@ -246,7 +244,7 @@ namespace NeovimGUI
             set
             {
                 _text = value;
-                if (RenderProps.Enabled == true)
+                if (RenderProps.Enabled)
                 {
                     Background = RenderProps.Background;
                     Foreground = RenderProps.Foreground;
@@ -264,21 +262,24 @@ namespace NeovimGUI
 
         public Cell(RenderProperties renderProperties)
         {
-            this.RenderProps = renderProperties;
-            this._text = " ";
-            this.TypeFace = new Typeface(new FontFamily("Courier"), FontStyles.Normal, FontWeights.Normal, FontStretches.Condensed);
-            this.FontSize = 12;
-            this.Width = this.FontSize;
-            this.Height = Math.Ceiling(this.FontSize * this.TypeFace.FontFamily.LineSpacing);
+            RenderProps = renderProperties;
+            _text = " ";
+            TypeFace = new Typeface(new FontFamily("Courier New"), FontStyles.Normal, FontWeights.Normal, FontStretches.Condensed);
+            FontSize = 12;
+            Width = FontSize;
+            Height = Math.Ceiling(FontSize * TypeFace.FontFamily.LineSpacing);
         }
 
         protected override void OnRender(DrawingContext drawingContext)
         {
             base.OnRender(drawingContext);
 
-            drawingContext.DrawRectangle(Background, null, new Rect(0, 0, this.Width, this.Height));
-            var formattedText = new FormattedText(Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, TypeFace, FontSize, Foreground);
-            drawingContext.DrawText(formattedText, new Point(0, 0));
+            drawingContext.DrawRectangle(Background, null, new Rect(0, 0, Width, Height));
+            if (Text != " " && Text != "")
+            {
+                var formattedText = new FormattedText(Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, TypeFace, FontSize, Foreground);
+                drawingContext.DrawText(formattedText, new Point(0, 0));
+            }
         }
     }
 }

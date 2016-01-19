@@ -10,9 +10,6 @@
             <MenuItem Header="Tools"></MenuItem>
             <MenuItem Header="Help"></MenuItem>
         </Menu>
-        <Grid x:Name="TerminalContainer" Margin="0,18,0,0">
-            <local:TerminalTst x:Name="_term" Margin="0,0,22.4,23.6">
-            </local:TerminalTst>
-        </Grid>
+        <local:Terminal x:Name="_term"></local:Terminal>
     </Grid>
 </Window>

@@ -55,11 +55,7 @@ namespace Neovim
             switch (result)
             {
                 case -1:
-                    break;
                 case 0:
-                    break;
-                case 1:
-                    ch = stringBuilder[0];
                     break;
                 default:
                     ch = stringBuilder[0];

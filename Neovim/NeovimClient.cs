@@ -27,10 +27,7 @@ namespace Neovim
         protected virtual void OnRedraw(NeovimRedrawEventArgs e)
         {
             EventHandler<NeovimRedrawEventArgs> handler = Redraw;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
+            handler?.Invoke(this, e);
         }
 
         /// <summary>

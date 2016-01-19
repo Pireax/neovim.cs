@@ -16,6 +16,7 @@ namespace Neovim
         Response = 1,
         Notification = 2
     }
+
     class MsgPackIO
     {
         /* Some of the code in this class is borrowed from http://odetocode.com/articles/97.aspx */
