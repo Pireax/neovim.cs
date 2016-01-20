@@ -10,9 +10,11 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using MsgPack;
 using Neovim;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using OpenTK.Platform.Windows;
+using QuickFont;
 
 namespace NeovimTK
 {
@@ -26,6 +28,9 @@ namespace NeovimTK
         private int _columns = 80;
         private float _width;
         private float _height;
+        private QFont _font;
+        private Color _fgColor;
+        private Color _bgColor = Color.DarkSlateGray;
 
         private FrameBuffer _backBuffer;
         private char[] charBuffer;
@@ -33,13 +38,6 @@ namespace NeovimTK
         public MainWindow()
         {
             InitializeComponent();
-
-            _width = Font.Size;
-            _height = Font.Height;
-            glControl.Width = Convert.ToInt32(_width * _columns);
-            glControl.Height = Convert.ToInt32(_height * _rows);
-
-            _cursor = new RectangleF(0, 0, _width, _height);
 
             _uiContext = SynchronizationContext.Current;
             _neovim = new NeovimClient(@"C:\Program Files\Neovim\bin\nvim.exe");
@@ -106,26 +104,38 @@ namespace NeovimTK
             //            _term.Highlight(fg, bold, italic);
             //            break;
 
-            //        case "eol_clear":
-            //            _term.ClearToEnd();
-            //            break;
+                    case "eol_clear":
+                        PaintRectangle(new RectangleF(_cursor.X, _cursor.Y, _columns * _width - _cursor.X, _height), _bgColor);
+                        break;
 
-            //        case "set_title":
-            //            this.Title = args[0][0].AsString(Encoding.Default);
-            //            break;
+                    case "set_title":
+                        Text = args[0][0].AsString(Encoding.Default);
+                        break;
 
-            //        case "put":
-            //            List<byte> bytes = new List<byte>();
+                    case "put":
+                        List<byte> bytes = new List<byte>();
 
-            //            foreach (var arg in args)
-            //                bytes.AddRange(arg[0].AsBinary());
+                        foreach (var arg in args)
+                            bytes.AddRange(arg[0].AsBinary());
 
-            //            _term.PutText(Encoding.Default.GetString(bytes.ToArray()));
-            //            break;
+                        var text = Encoding.Default.GetString(bytes.ToArray());
+                        var tSize = _font.Measure(text);
+                        GL.Disable(EnableCap.Blend);
+                        PaintRectangle(new RectangleF(_cursor.Location, tSize), _bgColor);
+                        QFont.Begin();
+                        _font.Print(text, new Vector2(_cursor.X, _cursor.Y));
+                        QFont.End();
+                        _cursor.X += _width;
+                        if (_cursor.X == _columns*_width)
+                        {
+                            _cursor.X = 0;
+                            _cursor.Y += _height;
+                        }
+                        break;
 
                     case "cursor_goto":
-                        _cursor.X = args[0][0].AsInt32();
-                        _cursor.Y = args[0][1].AsInt32();
+                        _cursor.Y = args[0][0].AsInt32() * _height;
+                        _cursor.X = args[0][1].AsInt32() * _width;
                         break;
 
             //        case "scroll":
@@ -156,59 +166,48 @@ namespace NeovimTK
             //            break;
                 }
             }
+            FrameBuffer.Unbind();
             glControl.Invalidate();
         }
 
 
         private void glControl_Load(object sender, EventArgs e)
         {
+            _font = new QFont(glControl.Font);
+            _font.Options.Monospacing = QFontMonospacing.Yes;
+            _font.Options.Colour = Color.White;
+
+            _width = _font.MonoSpaceWidth;
+            _height = _font.LineSpacing;
+            glControl.Width = Convert.ToInt32(_width * _columns);
+            glControl.Height = Convert.ToInt32(_height * _rows);
+
+            _cursor = new RectangleF(0, 0, _width, _height);
+
             _backBuffer = new FrameBuffer(glControl.Width, glControl.Height);
-
-            GL.MatrixMode(MatrixMode.Projection);
-            GL.LoadIdentity();
-            GL.Ortho(0, 1, 1, 0, -1, 1);
-
-            GL.MatrixMode(MatrixMode.Modelview);
-            GL.LoadIdentity();
+            GL.Ortho(0, glControl.Width, glControl.Height, 0, -1, 1);
+            GL.Viewport(0, 0, glControl.Width, glControl.Height);
 
             GL.Disable(EnableCap.DepthTest);
-            GL.ClearColor(Color.DarkSlateGray);
-
-            _backBuffer.Bind();
-            GL.Color3(Color.Red);
-
-            GL.Begin(PrimitiveType.Quads);
-
-            GL.Vertex2(0, 0);
-            GL.Vertex2(1, 0);
-            GL.Vertex2(1, 1);
-            GL.Vertex2(0, 1);
-
-            GL.End();
+            GL.ClearColor(_bgColor);
         }
 
         private void glControl_Paint(object sender, PaintEventArgs e)
         {
             GL.Clear(ClearBufferMask.ColorBufferBit);
-            GL.Ext.BindFramebuffer(FramebufferTarget.FramebufferExt, 0);
-            GL.Viewport(0, 0, glControl.Width, glControl.Height);
 
             _backBuffer.Texture.Bind();
 
             GL.Begin(PrimitiveType.Quads);
 
-            GL.Vertex2(0, 0);
-            GL.Vertex2(1, 0);
-            GL.Vertex2(1, 1);
-            GL.Vertex2(0, 1);
+            GL.TexCoord2(0, 1); GL.Vertex2(0, 0);
+            GL.TexCoord2(1, 1); GL.Vertex2(glControl.Width, 0);
+            GL.TexCoord2(1, 0); GL.Vertex2(glControl.Width, glControl.Height);
+            GL.TexCoord2(0, 0); GL.Vertex2(0, glControl.Height);
 
             GL.End();
 
-            GL.BindTexture(TextureTarget.Texture2D, 0);
-
-            GL.MatrixMode(MatrixMode.Projection);
-            GL.LoadIdentity();
-            GL.Ortho(0, glControl.Width, glControl.Height, 0, -1, 1);
+            Texture2D.Unbind();
 
             PaintRectangle(_cursor, Color.Green);
 
@@ -222,19 +221,21 @@ namespace NeovimTK
             GL.Begin(PrimitiveType.Quads);
 
             GL.Vertex2(rect.X, rect.Y);
-            GL.Vertex2(rect.Width, rect.Y);
-            GL.Vertex2(rect.Width, rect.Height);
-            GL.Vertex2(rect.X, rect.Height);
+            GL.Vertex2(rect.X + rect.Width, rect.Y);
+            GL.Vertex2(rect.X + rect.Width, rect.Y + rect.Height);
+            GL.Vertex2(rect.X, rect.Y + rect.Height);
 
             GL.End();
+
+            GL.Color4(Color.White);
         }
 
         private void glControl_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Shift || e.Alt || e.Control)
+            if (e.KeyCode == Keys.ShiftKey || e.KeyCode == Keys.Alt || e.KeyCode == Keys.ControlKey)
                 return;
 
-            string keys = Input.Encode(e.KeyValue);
+            string keys = Input.Encode((int)e.KeyCode);
             if (keys != null)
                 _neovim.vim_input(keys);
 

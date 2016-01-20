@@ -26,6 +26,11 @@ namespace NeovimTK
             GL.BindTexture(TextureTarget.Texture2D, Handle);
         }
 
+        public static void Unbind()
+        {
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+        }
+
         public void Dispose()
         {
             var value = Handle;

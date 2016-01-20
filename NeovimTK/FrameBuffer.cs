@@ -19,27 +19,38 @@ namespace NeovimTK
 
             Texture = new Texture2D(Width, Height);
 
-            GL.Ext.GenFramebuffers(1, out Handle);
-            GL.Ext.BindFramebuffer(FramebufferTarget.FramebufferExt, Handle);
-            GL.Ext.FramebufferTexture2D(FramebufferTarget.FramebufferExt, FramebufferAttachment.ColorAttachment0Ext, TextureTarget.Texture2D, Texture.Handle, 0);
+            GL.GenFramebuffers(1, out Handle);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, Handle);
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, Texture.Handle, 0);
 
-            FramebufferErrorCode errorCode = GL.Ext.CheckFramebufferStatus(FramebufferTarget.FramebufferExt);
+            FramebufferErrorCode errorCode = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
 
-            if (errorCode != FramebufferErrorCode.FramebufferCompleteExt)
+            if (errorCode != FramebufferErrorCode.FramebufferComplete)
                 throw new Exception($"Framebuffer construction failed with error: {errorCode}");
 
-            GL.Ext.BindFramebuffer(FramebufferTarget.FramebufferExt, 0);
+            GL.DrawBuffer((DrawBufferMode)FramebufferAttachment.ColorAttachment0);
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
 
         public void Bind()
         {
-            GL.Ext.BindFramebuffer(FramebufferTarget.FramebufferExt, Handle);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, Handle);
+            GL.PushAttrib(AttribMask.ViewportBit);
+            GL.Viewport(0, 0, Width, Height);
+        }
+
+        public static void Unbind()
+        {
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            GL.DrawBuffer(DrawBufferMode.Back);
+            GL.PopAttrib();
         }
 
         public void Dispose()
         {
             var value = Handle;
-            GL.Ext.DeleteFramebuffers(1, ref value);
+            GL.DeleteFramebuffers(1, ref value);
         }
     }
 }
