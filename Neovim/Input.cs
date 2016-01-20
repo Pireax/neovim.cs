@@ -37,20 +37,20 @@ namespace Neovim
             MAPVK_VSC_TO_VK_EX = 0x3
         }
 
-        public static string Encode(Key key)
+        private static string KeyToUnicode(Key key)
         {
             char ch = '\0';
 
             int virtualKey = KeyInterop.VirtualKeyFromKey(key);
 
-            uint scanCode = MapVirtualKey((uint) virtualKey, MapType.MAPVK_VK_TO_VSC);
+            uint scanCode = MapVirtualKey((uint)virtualKey, MapType.MAPVK_VK_TO_VSC);
 
             byte[] keyboardState = new byte[256];
             GetKeyboardState(keyboardState);
 
             StringBuilder stringBuilder = new StringBuilder(2);
 
-            int result = ToUnicode((uint) virtualKey, scanCode, keyboardState, stringBuilder, stringBuilder.Capacity, 0);
+            int result = ToUnicode((uint)virtualKey, scanCode, keyboardState, stringBuilder, stringBuilder.Capacity, 0);
 
             switch (result)
             {
@@ -73,6 +73,16 @@ namespace Neovim
             }
 
             return ch.ToString();
+        }
+
+        public static string Encode(Key key)
+        {
+          return KeyToUnicode(key);
+        }
+
+        public static string Encode(int key)
+        {
+            return KeyToUnicode(KeyInterop.KeyFromVirtualKey(key));
         }
     }
 }
