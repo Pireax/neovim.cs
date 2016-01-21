@@ -164,7 +164,7 @@ namespace Neovim
             _process = new Process();
             _process.StartInfo = GetStartInfo(filename, args);
             _process.EnableRaisingEvents = true;
-            _process.Exited += new EventHandler(_process_Exited);
+            _process.Exited += _process_Exited;
             _process.Start();
 
             AttachStreams();
