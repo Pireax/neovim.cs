@@ -211,37 +211,39 @@ namespace NeovimTK
                         if (count == 1)
                         {
                             _pingPongBuffer.Bind();
-
                             _backBuffer.Texture.Bind();
 
-                            // DrawTexturedRectangle is bugged
-                            DrawTexturedRectangle(new RectangleF(0, 0, glControl.Width, glControl.Height - _height),
-                                                  new RectangleF(0, 0, glControl.Width, glControl.Height - _height));
+                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height),
+                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height));
+
+                            _backBuffer.Bind();
+                            _pingPongBuffer.Texture.Bind();
+
+                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height),
+                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height));
+
                             Texture2D.Unbind();
 
-                            DrawRectangle(new RectangleF(0, glControl.Height - _height * count, glControl.Width, _height), _bgColor);
-
-                            // Swap buffers
-                            var buffer = _backBuffer;
-                            _backBuffer = _pingPongBuffer;
-                            _pingPongBuffer = buffer;
+                            DrawRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y + _scrollRegion.Height - _height, _scrollRegion.Width, _height + 1), _bgColor);
                         }
                         // Scroll down
                         else if (count == -1)
                         {
                             _pingPongBuffer.Bind();
-
-                            DrawRectangle(new RectangleF(0, 0, glControl.Width, _height), _bgColor);
-
                             _backBuffer.Texture.Bind();
-                            DrawTexturedRectangle(new RectangleF(0, _height, glControl.Width, glControl.Height - _height),
-                                                  new RectangleF(0, _height, glControl.Width, glControl.Height - _height));
+
+                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height),
+                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height));
+
+                            _backBuffer.Bind();
+                            _pingPongBuffer.Texture.Bind();
+
+                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height),
+                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height));
+
                             Texture2D.Unbind();
 
-                            // Swap buffers
-                            var buffer = _backBuffer;
-                            _backBuffer = _pingPongBuffer;
-                            _pingPongBuffer = buffer;
+                            DrawRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _height + 1), _bgColor);
                         }
                         break;
 
@@ -358,10 +360,12 @@ namespace NeovimTK
             var wScale = 1.0f/glControl.Width;
             var hScale = 1.0f/glControl.Height;
 
-            GL.TexCoord2(wScale * rectSrc.X, hScale * (rectSrc.Y + rectSrc.Height));              GL.Vertex2(rectDst.X, rectDst.Y);
-            GL.TexCoord2(wScale * (rectSrc.X + rectSrc.Width), hScale * (rectSrc.Y + rectSrc.Height)); GL.Vertex2(rectDst.X + rectDst.Width, rectDst.Y);
-            GL.TexCoord2(wScale * (rectSrc.X + rectSrc.Width), hScale * rectSrc.Y);               GL.Vertex2(rectDst.X + rectDst.Width, rectDst.Y + rectDst.Height);
-            GL.TexCoord2(wScale * rectSrc.X, hScale * rectSrc.Y);                            GL.Vertex2(rectDst.X, rectDst.Y + rectDst.Height);
+            var flippedRectSrc = new RectangleF(rectSrc.X, glControl.Height - rectSrc.Bottom, rectSrc.Width, rectSrc.Height);
+
+            GL.TexCoord2(wScale * flippedRectSrc.X,                          hScale * (flippedRectSrc.Y + flippedRectSrc.Height)); GL.Vertex2(rectDst.X, rectDst.Y);
+            GL.TexCoord2(wScale * (flippedRectSrc.X + flippedRectSrc.Width), hScale * (flippedRectSrc.Y + flippedRectSrc.Height)); GL.Vertex2(rectDst.X + rectDst.Width, rectDst.Y);
+            GL.TexCoord2(wScale * (flippedRectSrc.X + flippedRectSrc.Width), hScale * flippedRectSrc.Y);                           GL.Vertex2(rectDst.X + rectDst.Width, rectDst.Y + rectDst.Height);
+            GL.TexCoord2(wScale * flippedRectSrc.X,                          hScale * (flippedRectSrc.Y));                         GL.Vertex2(rectDst.X, rectDst.Y + rectDst.Height);
 
             GL.End();
         }
