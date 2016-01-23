@@ -34,15 +34,14 @@ namespace Neovim
         /// Fires a redraw event after getting a notification from the MsgPackIO class
         /// </summary>
         /// <param name="sender"></param>
-        /// <param name="msgPackEventArgs"></param>
-        private void OnNotificationReceived(object sender, MsgPackEventArgs msgPackEventArgs)
+        /// <param name="msgPackNotificationEventArgs"></param>
+        private void OnNotificationReceived(object sender, MsgPackNotificationEventArgs msgPackNotificationEventArgs)
         {
-            if (msgPackEventArgs.Function != "redraw")
+            if (msgPackNotificationEventArgs.Method != "redraw")
                 return;
 
-            var list = msgPackEventArgs.Result.AsList();
             NeovimRedrawEventArgs args = new NeovimRedrawEventArgs();
-            args.Functions = list;
+            args.Methods = NotificationParser.ParseRedraw(msgPackNotificationEventArgs.Params.AsList());
             OnRedraw(args);
         }
 
@@ -358,6 +357,6 @@ namespace Neovim
     /// </summary>
     public class NeovimRedrawEventArgs : EventArgs
     {
-        public IList<MessagePackObject> Functions;
+        public IList<RedrawMethod> Methods;
     }
 }

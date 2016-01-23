@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace NeovimTK.Properties
+namespace NeovimDemo.Properties
 {
 
 

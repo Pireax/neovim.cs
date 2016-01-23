@@ -2,7 +2,7 @@
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 
-namespace NeovimTK
+namespace NeovimDemo
 {
     public class FrameBuffer : IDisposable
     {

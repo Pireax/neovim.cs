@@ -122,10 +122,10 @@ namespace Neovim
             return result;
         }
 
-        public delegate void MsgPackNotificationEventHandler(object sender, MsgPackEventArgs e);
+        public delegate void MsgPackNotificationEventHandler(object sender, MsgPackNotificationEventArgs e);
         public event MsgPackNotificationEventHandler NotificationReceived;
 
-        protected virtual void OnNotificationReceived(MsgPackEventArgs e)
+        protected virtual void OnNotificationReceived(MsgPackNotificationEventArgs e)
         {
             MsgPackNotificationEventHandler handler = NotificationReceived;
             if (handler != null)
@@ -235,9 +235,9 @@ namespace Neovim
 
                         var res = dataList[2];
 
-                        MsgPackEventArgs args = new MsgPackEventArgs();
-                        args.Function = func;
-                        args.Result = res;
+                        MsgPackNotificationEventArgs args = new MsgPackNotificationEventArgs();
+                        args.Method = func;
+                        args.Params = res;
                         OnNotificationReceived(args);
                     }
 
@@ -287,10 +287,10 @@ namespace Neovim
         }
     }
 
-    public class MsgPackEventArgs : EventArgs
+    public class MsgPackNotificationEventArgs : EventArgs
     {
-        public MessagePackObject Result { get; set; }
-        public string Function { get; set; }
+        public MessagePackObject Params { get; set; }
+        public string Method { get; set; }
     }
 
     internal class AsyncState

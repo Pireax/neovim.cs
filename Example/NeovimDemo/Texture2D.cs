@@ -1,7 +1,7 @@
 ﻿using System;
 using OpenTK.Graphics.OpenGL;
 
-namespace NeovimTK
+namespace NeovimDemo
 {
     public class Texture2D : IDisposable
     {

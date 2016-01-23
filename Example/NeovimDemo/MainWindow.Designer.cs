@@ -1,4 +1,4 @@
-﻿namespace NeovimTK
+﻿namespace NeovimDemo
 {
     partial class MainWindow
     {

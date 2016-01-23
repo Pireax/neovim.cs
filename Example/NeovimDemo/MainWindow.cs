@@ -1,76 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using MsgPack;
 using Neovim;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Input;
-using OpenTK.Platform.Windows;
 using QuickFont;
 
-namespace NeovimTK
+namespace NeovimDemo
 {
     public partial class MainWindow : Form
     {
-        public class FontGroup
-        {
-            private QFont _normal;
-            private QFont _bold;
-            private QFont _italic;
-
-            public FontStyle FontStyle;
-
-            public FontGroup(Font font)
-            {
-                _normal = new QFont(new Font(font, FontStyle.Regular));
-                _normal.Options.Monospacing = QFontMonospacing.Yes;
-
-                _bold = new QFont(new Font(font, FontStyle.Bold));
-                _bold.Options.Monospacing = QFontMonospacing.Yes;
-
-                _italic = new QFont(new Font(font, FontStyle.Italic));
-                _italic.Options.Monospacing = QFontMonospacing.Yes;
-            }
-
-            public float MonoSpaceWidth => _normal.MonoSpaceWidth;
-            public float LineSpacing => _normal.LineSpacing;
-
-            public void Print(string text, Vector2 position)
-            {
-                if (FontStyle == FontStyle.Regular)
-                    _normal.Print(text, position);
-                else if ((FontStyle & FontStyle.Bold) > 0)
-                    _bold.Print(text, position);
-                else if ((FontStyle & FontStyle.Italic) > 0)
-                    _italic.Print(text, position);
-            }
-
-            public SizeF Measure(string text)
-            {
-                return _normal.Measure(text);
-            }
-
-            public Color4 Color
-            {
-                set
-                {
-                    _normal.Options.Colour = value;
-                    _bold.Options.Colour = value;
-                    _italic.Options.Colour = value;
-                }
-                get { return _normal.Options.Colour; }
-            }
-        }
-
         private readonly SynchronizationContext _uiContext;
         private NeovimClient _neovim;
 
@@ -112,37 +56,30 @@ namespace NeovimTK
             bool shouldInvalidate = false;
      
             _backBuffer.Bind();
-            foreach (var f in e.Functions)
+            foreach (var method in e.Methods)
             {
-                var list = f.AsList();
-                string function = list[0].AsString(Encoding.Default);
-
-                IList<IList<MessagePackObject>> args = new List<IList<MessagePackObject>>();
-                for (var i = 1; i < list.Count; i++)
-                    args.Add(list[i].AsList());
-
-                switch (function)
+                switch (method.Method)
                 {
-                    case "clear":
+                    case RedrawMethodType.Clear:
                         shouldInvalidate = true;
                         GL.Clear(ClearBufferMask.ColorBufferBit);
                         break;
 
-            //        case "resize":
-            //            _term.Resize(args[0][1].AsInt32(), args[0][0].AsInt32());
-            //            break;
+                    //        case RedrawMethodType.Resize:
+                    //            _term.Resize(args[0][1].AsInt32(), args[0][0].AsInt32());
+                    //            break;
 
-                    case "update_fg":
-                        _font.Color = ColorFromRgb(args[0][0].AsInt32());
+                    case RedrawMethodType.UpdateForeground:
+                        _font.Color = ColorFromRgb(method.Params[0][0].AsInt32());
                         break;
 
-                    case "update_bg":
-                        _bgColor = ColorFromRgb(args[0][0].AsInt32());
+                    case RedrawMethodType.UpdateBackground:
+                        _bgColor = ColorFromRgb(method.Params[0][0].AsInt32());
                         GL.ClearColor(_bgColor);
                         break;
 
-                    case "highlight_set":
-                        foreach (var arg in args)
+                    case RedrawMethodType.HighlightSet:
+                        foreach (var arg in method.Params)
                         {
                             var dict = arg[0].AsDictionary();
 
@@ -163,20 +100,19 @@ namespace NeovimTK
                         }
                         break;
 
-                    case "eol_clear":
+                    case RedrawMethodType.EolClear:
                         shouldInvalidate = true;
                         DrawRectangle(new RectangleF(_cursor.X, _cursor.Y, _columns * _width - _cursor.X, _height), _bgColor);
                         break;
 
-                    case "set_title":
-                        Text = args[0][0].AsString(Encoding.Default);
+                    case RedrawMethodType.SetTitle:
+                        Text = method.Params[0][0].AsString(Encoding.Default);
                         break;
 
-                    case "put":
+                    case RedrawMethodType.Put:
                         shouldInvalidate = true;
                         List<byte> bytes = new List<byte>();
-
-                        foreach (var arg in args)
+                        foreach (var arg in method.Params)
                             bytes.AddRange(arg[0].AsBinary());
 
                         var text = Encoding.Default.GetString(bytes.ToArray());
@@ -197,85 +133,86 @@ namespace NeovimTK
                         }
                         break;
 
-                    case "cursor_goto":
+                    case RedrawMethodType.CursorGoto:
                         shouldInvalidate = true;
-                        _cursor.Y = args[0][0].AsInt32() * _height;
-                        _cursor.X = args[0][1].AsInt32() * _width;
+                        _cursor.Y = method.Params[0][0].AsInt32() * _height;
+                        _cursor.X = method.Params[0][1].AsInt32() * _width;
                         break;
 
-                    case "scroll":
+                    case RedrawMethodType.Scroll:
                         // Amount to scroll
-                        var count = args[0][0].AsSByte();
+                        var count = method.Params[0][0].AsSByte();
+                        if (count == 0) return;
+
+                        var srcRect = new RectangleF();
+                        var dstRect = new RectangleF();
+                        var clearRect = new RectangleF();
 
                         // Scroll up
-                        if (count == 1)
+                        if (count >= 1)
                         {
-                            _pingPongBuffer.Bind();
-                            _backBuffer.Texture.Bind();
-
-                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height),
-                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height));
-
-                            _backBuffer.Bind();
-                            _pingPongBuffer.Texture.Bind();
-
-                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height),
-                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height));
-
-                            Texture2D.Unbind();
-
-                            DrawRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y + _scrollRegion.Height - _height, _scrollRegion.Width, _height + 1), _bgColor);
+                            srcRect = new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width,
+                                _scrollRegion.Height - _height);
+                            dstRect = new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width,
+                                _scrollRegion.Height - _height);
+                            clearRect = new RectangleF(_scrollRegion.X, _scrollRegion.Y + _scrollRegion.Height - _height,
+                                _scrollRegion.Width, _height + 1);
                         }
                         // Scroll down
-                        else if (count == -1)
+                        else if (count <= -1)
                         {
-                            _pingPongBuffer.Bind();
-                            _backBuffer.Texture.Bind();
-
-                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _scrollRegion.Height - _height),
-                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height));
-
-                            _backBuffer.Bind();
-                            _pingPongBuffer.Texture.Bind();
-
-                            DrawTexturedRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height),
-                                                  new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width, _scrollRegion.Height - _height));
-
-                            Texture2D.Unbind();
-
-                            DrawRectangle(new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width, _height + 1), _bgColor);
+                            srcRect = new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width,
+                                _scrollRegion.Height - _height);
+                            dstRect = new RectangleF(_scrollRegion.X, _scrollRegion.Y + _height, _scrollRegion.Width,
+                                _scrollRegion.Height - _height);
+                            clearRect = new RectangleF(_scrollRegion.X, _scrollRegion.Y, _scrollRegion.Width,
+                                _height + 1);
                         }
+
+                        _pingPongBuffer.Bind();
+                        _backBuffer.Texture.Bind();
+
+                        DrawTexturedRectangle(srcRect, dstRect);
+
+                        _backBuffer.Bind();
+                        _pingPongBuffer.Texture.Bind();
+
+                        DrawTexturedRectangle(dstRect, dstRect);
+
+                        Texture2D.Unbind();
+
+                        DrawRectangle(clearRect, _bgColor);
                         break;
 
-                    case "set_scroll_region":
-                        var x = args[0][2].AsUInt32() * _width;
-                        var y = args[0][0].AsUInt32() * _height;
-                        var width = (args[0][3].AsUInt32() + 1) * _width;
-                        var height = (args[0][1].AsUInt32() + 1) * _height;
+                    case RedrawMethodType.SetScrollRegion:
+                        var x = method.Params[0][2].AsUInt32() * _width;
+                        var y = method.Params[0][0].AsUInt32() * _height;
+                        var width = (method.Params[0][3].AsUInt32() + 1) * _width;
+                        var height = (method.Params[0][1].AsUInt32() + 1) * _height;
 
                         _scrollRegion = new RectangleF(x, y, width, height);
                         break;
 
-                    case "mode_change":
+                    case RedrawMethodType.ModeChange:
                         shouldInvalidate = true;
-                        var mode = args[0][0].AsString(Encoding.Default);
+                        var mode = method.Params[0][0].AsString(Encoding.Default);
                         if (mode == "insert")
                             _cursor.Width = _width / 4;
                         else if (mode == "normal")
                             _cursor.Width = _width;
                         break;
 
-            //        case "busy_start":
-            //            break;
+                        //        case RedrawMethodType.BusyStart:
+                        //            break;
 
-            //        case "busy_stop":
-            //            break;
+                        //        case RedrawMethodType.BusyStop:
+                        //            break;
 
-            //        case "mouse_on":
-            //            break;
+                        //        case RedrawMethodType.MouseOn:
+                        //            break;
 
-            //        case "mouse_off":
-            //            break;
+                        //        case RedrawMethodType.MouseOff:
+                        //            break;
                 }
             }
             FrameBuffer.Unbind();
