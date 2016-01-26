@@ -4,12 +4,9 @@ using System.Drawing;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using MsgPack;
 using Neovim;
 using OpenTK;
-using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
-using QuickFont;
 
 namespace NeovimDemo
 {
@@ -39,11 +36,11 @@ namespace NeovimDemo
             _uiContext = SynchronizationContext.Current;
             _neovim = new NeovimClient(@"C:\Program Files\Neovim\bin\nvim.exe");
             // Event is asynchronous so we need to handle the redraw event in the UI thread
-            _neovim.Redraw += (o, args) => _uiContext.Post((x) => NeovimOnRedraw(o, args), null);
+            _neovim.Redraw += (o, args) => _uiContext.Post(x => NeovimOnRedraw(o, args), null);
             _neovim.ui_attach(_columns, _rows, true);
         }
 
-        private Color ColorFromRgb(int rgb)
+        private Color ColorFromRgb(long rgb)
         {
             byte r = (byte)(rgb >> 16);
             byte g = (byte)(rgb >> 8);
@@ -65,16 +62,19 @@ namespace NeovimDemo
                         GL.Clear(ClearBufferMask.ColorBufferBit);
                         break;
 
-                    //        case RedrawMethodType.Resize:
-                    //            _term.Resize(args[0][1].AsInt32(), args[0][0].AsInt32());
-                    //            break;
+                    case RedrawMethodType.Resize:
+                        var columns = method.Params[0][1].AsInteger();
+                        var rows = method.Params[0][0].AsInteger();
+                        if (rows == _rows && columns == _columns) return;
+
+                        break;
 
                     case RedrawMethodType.UpdateForeground:
-                        _font.Color = ColorFromRgb(method.Params[0][0].AsInt32());
+                        _font.Color = ColorFromRgb(method.Params[0][0].AsInteger());
                         break;
 
                     case RedrawMethodType.UpdateBackground:
-                        _bgColor = ColorFromRgb(method.Params[0][0].AsInt32());
+                        _bgColor = ColorFromRgb(method.Params[0][0].AsInteger());
                         GL.ClearColor(_bgColor);
                         break;
 
@@ -87,7 +87,8 @@ namespace NeovimDemo
                             {
                                 var str = entry.Key.AsString(Encoding.Default);
                                 if (str == "foreground")
-                                    _font.Color = ColorFromRgb(entry.Value.AsInt32());
+                                    _font.Color = ColorFromRgb(entry.Value.AsInteger());
+                                else if (str == "background") {}
                                 else if (str == "bold")
                                     if (entry.Value.AsBoolean())
                                         _font.FontStyle |= FontStyle.Bold;
@@ -135,8 +136,8 @@ namespace NeovimDemo
 
                     case RedrawMethodType.CursorGoto:
                         shouldInvalidate = true;
-                        _cursor.Y = method.Params[0][0].AsInt32() * _height;
-                        _cursor.X = method.Params[0][1].AsInt32() * _width;
+                        _cursor.Y = method.Params[0][0].AsInteger() * _height;
+                        _cursor.X = method.Params[0][1].AsInteger() * _width;
                         break;
 
                     case RedrawMethodType.Scroll:
@@ -185,10 +186,10 @@ namespace NeovimDemo
                         break;
 
                     case RedrawMethodType.SetScrollRegion:
-                        var x = method.Params[0][2].AsUInt32() * _width;
-                        var y = method.Params[0][0].AsUInt32() * _height;
-                        var width = (method.Params[0][3].AsUInt32() + 1) * _width;
-                        var height = (method.Params[0][1].AsUInt32() + 1) * _height;
+                        var x = method.Params[0][2].AsInteger() * _width;
+                        var y = method.Params[0][0].AsInteger() * _height;
+                        var width = (method.Params[0][3].AsInteger() + 1) * _width;
+                        var height = (method.Params[0][1].AsInteger() + 1) * _height;
 
                         _scrollRegion = new RectangleF(x, y, width, height);
                         break;

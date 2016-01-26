@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using MsgPack;
 
 namespace Neovim
 {
     public class NeovimClient
     {
-        MsgPackIO _io;
+        NeovimConnector _io;
 
         /// <summary>
         /// Initializes the Client
@@ -17,9 +16,9 @@ namespace Neovim
         /// <param name="path">Path to Neovim.exe</param>
         public NeovimClient(string path)
         {
-            _io = new MsgPackIO(path, @"--embed --headless");
+            _io = new NeovimConnector.Embed(path, @"--embed --headless");
             _io.NotificationReceived += OnNotificationReceived;
-            _io.StartReadingOutput();
+            _io.StartReading();
         }
 
         public event EventHandler<NeovimRedrawEventArgs> Redraw;
@@ -50,7 +49,7 @@ namespace Neovim
         #region buffer
         public long buffer_line_count(long buffer)
         {
-            return _io.Request((int)MessageType.Request, "buffer_line_count", new object[] { buffer })[1].AsInt64();
+            return _io.Request((int)MessageType.Request, "buffer_line_count", new object[] { buffer })[1].AsInteger();
         }
         public string buffer_get_line(long buffer, long index)
         {
@@ -91,7 +90,7 @@ namespace Neovim
         }
         public long buffer_get_number(long buffer)
         {
-            return _io.Request((int)MessageType.Request, "buffer_get_number", new object[] { buffer })[1].AsInt64();
+            return _io.Request((int)MessageType.Request, "buffer_get_number", new object[] { buffer })[1].AsInteger();
         }
         public string buffer_get_name(long buffer)
         {
@@ -108,7 +107,7 @@ namespace Neovim
         public long[] buffer_get_mark(long buffer, string name)
         {
             var list = _io.Request((int)MessageType.Request, "buffer_get_mark", new object[] { buffer, name })[1].AsList();
-            return list.Select(i => i.AsInt64()).ToArray();
+            return list.Select(i => i.AsInteger()).ToArray();
         }
         #endregion
 
@@ -142,7 +141,7 @@ namespace Neovim
         }
         public long vim_input(string keys)
         {
-            return _io.Request((int)MessageType.Request, "vim_input", new object[] { keys }, true)[1].AsInt64();
+            return _io.Request((int)MessageType.Request, "vim_input", new object[] { keys }, true)[1].AsInteger();
         }
         public string vim_replace_termcodes(string str, bool from_part, bool do_lt, bool special)
         {
@@ -158,7 +157,7 @@ namespace Neovim
         }
         public long vim_strwidth(string str)
         {
-            return _io.Request((int)MessageType.Request, "vim_strwidth", new object[] { str })[1].AsInt64();
+            return _io.Request((int)MessageType.Request, "vim_strwidth", new object[] { str })[1].AsInteger();
         }
         public string[] vim_list_runtime_paths(string str, bool from_part, bool do_lt, bool special)
         {
@@ -262,7 +261,7 @@ namespace Neovim
         }
         public long vim_name_to_color(string name)
         {
-            return _io.Request((int) MessageType.Request, "vim_name_to_color", new object[] {name})[1].AsInt64();
+            return _io.Request((int) MessageType.Request, "vim_name_to_color", new object[] {name})[1].AsInteger();
         }
         public MessagePackObject vim_get_color_map()
         {
@@ -282,7 +281,7 @@ namespace Neovim
         public long[] window_get_cursor(long window)
         {
             var list = _io.Request((int) MessageType.Request, "window_get_cursor", new object[] {window})[1].AsList();
-            return list.Select(i => i.AsInt64()).ToArray();
+            return list.Select(i => i.AsInteger()).ToArray();
         }
         public void window_set_cursor(long window, long[] pos)
         {
@@ -290,7 +289,7 @@ namespace Neovim
         }
         public long window_get_height(long window)
         {
-            return _io.Request((int)MessageType.Request, "window_get_height", new object[] { window })[1].AsInt64();
+            return _io.Request((int)MessageType.Request, "window_get_height", new object[] { window })[1].AsInteger();
         }
         public void window_set_height(long window, long height)
         {
@@ -298,7 +297,7 @@ namespace Neovim
         }
         public long window_get_width(long window)
         {
-            return _io.Request((int)MessageType.Request, "window_get_width", new object[] { window })[1].AsInt64();
+            return _io.Request((int)MessageType.Request, "window_get_width", new object[] { window })[1].AsInteger();
         }
         public void window_set_width(long window, long width)
         {
@@ -323,7 +322,7 @@ namespace Neovim
         public long[] window_get_position(long window)
         {
             var list = _io.Request((int)MessageType.Request, "window_get_position", new object[] { window })[1].AsList();
-            return list.Select(i => i.AsInt64()).ToArray();
+            return list.Select(i => i.AsInteger()).ToArray();
         }
         public long window_get_tabpage(long window)
         {

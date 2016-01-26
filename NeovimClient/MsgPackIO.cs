@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Diagnostics;
-using System.Runtime.ExceptionServices;
 using MsgPack;
 
 namespace Neovim
@@ -17,27 +16,50 @@ namespace Neovim
         Notification = 2
     }
 
-    class MsgPackIO
+    internal class MsgPackIO
     {
         /* Some of the code in this class is borrowed from http://odetocode.com/articles/97.aspx */
+        private readonly StreamWriter _standardInput;
+        private readonly StreamReader _standardOutput;
+        private readonly StreamReader _standardError;
+        private readonly byte[] _errorBuffer = new byte[8192];
+        private readonly byte[] _outputBuffer = new byte[16384];
+        private readonly Dictionary<long, TaskCompletionSource<MessagePackObject[]>> _tcs = new Dictionary<long, TaskCompletionSource<MessagePackObject[]>>();
 
-        private bool _executing = false;
-        private Process _process;
-        private StreamWriter _standardInput;
-        private StreamReader _standardOutput;
-        private StreamReader _standardError;
-        private byte[] _errorBuffer = new byte[8192];
-        private byte[] _outputBuffer = new byte[16384];
-        private Dictionary<int, TaskCompletionSource<MessagePackObject[]>> tcs = new Dictionary<int, TaskCompletionSource<MessagePackObject[]>>();
-
-        private int _msgId = 0;
+        private int _msgId;
 
         private AsyncCallback _outputReady;
         private AsyncState _outputState;
         private AsyncCallback _errorReady;
         private AsyncState _errorState;
 
-        public MsgPackIO(string filename, string args) { InitializeProcess(filename, args); }
+        public MsgPackIO(StreamWriter input, StreamReader output, StreamReader error)
+        {
+            _standardInput = input;
+            _standardOutput = output;
+            _standardError = error;
+
+            PrepareAsyncState(true);
+        }
+
+        public MsgPackIO(StreamWriter input, StreamReader output)
+        {
+            _standardInput = input;
+            _standardOutput = output;
+
+            PrepareAsyncState();
+        }
+
+        private void PrepareAsyncState(bool errorStream = false)
+        {
+            _outputReady = OutputCallback;
+            _outputState = new AsyncState(_standardOutput, _outputBuffer);
+
+            if (!errorStream) return;
+
+            _errorReady = ErrorCallback;
+            _errorState = new AsyncState(_standardError, _errorBuffer);
+        }
 
         /// <summary>
         /// Start reading asynchronously from the output and error streams
@@ -70,7 +92,7 @@ namespace Neovim
         public MessagePackObject[] Request(int type, string method, object[] parameters, bool returnValue = true)
         {
             var request = RequestAsync(type, method, parameters, returnValue);
-            MessagePackObject[] result = request.Result;
+            var result = request.Result;
             return result;
         }
 
@@ -86,18 +108,15 @@ namespace Neovim
         {
             MemoryStream package = new MemoryStream();
 
-            Packer packer = Packer.Create(package);
+            var packer = Packer.Create(package);
             packer.PackArrayHeader(4);
             packer.Pack(type);
             packer.Pack(_msgId);
             packer.PackString(method);
             packer.PackArrayHeader(parameters.Length);
-            if (parameters.Length > 0)
+            foreach (var param in parameters)
             {
-                foreach (var param in parameters)
-                {
-                    packer.Pack(param);
-                }
+                packer.Pack(param);
             }
 
             string temp;
@@ -109,7 +128,7 @@ namespace Neovim
 
             int id = _msgId;
             if (returnValue)
-                tcs.Add(id, new TaskCompletionSource<MessagePackObject[]>());
+                _tcs.Add(id, new TaskCompletionSource<MessagePackObject[]>());
 
             _standardInput.Write(temp);
             _msgId++;
@@ -117,8 +136,8 @@ namespace Neovim
             if (!returnValue)
                 return null;
 
-            MessagePackObject[] result = await tcs[id].Task.ConfigureAwait(false);
-            tcs.Remove(id);
+            MessagePackObject[] result = await _tcs[id].Task.ConfigureAwait(false);
+            _tcs.Remove(id);
             return result;
         }
 
@@ -127,64 +146,9 @@ namespace Neovim
 
         protected virtual void OnNotificationReceived(MsgPackNotificationEventArgs e)
         {
-            MsgPackNotificationEventHandler handler = NotificationReceived;
-            if (handler != null)
-            {
-                handler(this, e);
-            }
+            var handler = NotificationReceived;
+            handler?.Invoke(this, e);
         }
-
-        protected ProcessStartInfo GetStartInfo(string filename, string args)
-        {
-            ProcessStartInfo psi = new ProcessStartInfo();
-            psi.FileName = filename;
-            psi.Arguments = args;
-            psi.UseShellExecute = false;
-            psi.StandardErrorEncoding = Encoding.Default;
-            psi.StandardOutputEncoding = Encoding.Default;
-
-            psi.RedirectStandardInput = true;
-            psi.RedirectStandardError = true;
-            psi.RedirectStandardOutput = true;
-
-            psi.CreateNoWindow = true;
-
-            return psi;
-        }
-
-        protected void InitializeProcess(string filename, string args)
-        {
-            if (_executing)
-            {
-                // don't allow client to start another process while one is 
-                // currently executing
-                throw new ApplicationException("A Process is currently executing");
-            }
-
-            _process = new Process();
-            _process.StartInfo = GetStartInfo(filename, args);
-            _process.EnableRaisingEvents = true;
-            _process.Exited += _process_Exited;
-            _process.Start();
-
-            AttachStreams();
-            PrepareAsyncState();
-        }
-
-        private void AttachStreams()
-        {
-            _standardInput = _process.StandardInput;
-            _standardOutput = _process.StandardOutput;
-            _standardError = _process.StandardError;
-        }
-
-        private void _process_Exited(object sender, EventArgs e)
-        {
-            _process.Dispose();
-            _process = null;
-            _executing = false;
-        }
-
 
         /// <summary>
         /// Gets executed if BeginRead() has red some data
@@ -207,27 +171,27 @@ namespace Neovim
                     if (!data.Value.IsArray)
                         Debugger.Break();
 
-                    var dataList = data.Value.AsList();
+                    var dataList = data.Value.AsList().Select(x => new MessagePackObject(x)).ToList();
 
                     // Response message has 4 items in the array
                     if (dataList.Count == 4)
                     {
-                        var type = (MessageType)dataList[0].AsInt64();
+                        var type = (MessageType)dataList[0].AsInteger();
                         if (type != MessageType.Response)
                             Debugger.Break();
 
-                        var msgId = dataList[1].AsInt32();
+                        var msgId = dataList[1].AsInteger();
 
                         var err = dataList[2];
                         var res = dataList[3];
 
-                        tcs[msgId].SetResult(new[] { err, res });
+                        _tcs[msgId].SetResult(new[] { err, res });
                     }
 
                     // Notification message has 3 items in the array
                     else if (dataList.Count == 3)
                     {
-                        var type = (MessageType)dataList[0].AsInt64();
+                        var type = (MessageType)dataList[0].AsInteger();
                         if (type != MessageType.Notification)
                             Debugger.Break();
 
@@ -235,9 +199,11 @@ namespace Neovim
 
                         var res = dataList[2];
 
-                        MsgPackNotificationEventArgs args = new MsgPackNotificationEventArgs();
-                        args.Method = func;
-                        args.Params = res;
+                        MsgPackNotificationEventArgs args = new MsgPackNotificationEventArgs
+                        {
+                            Method = func,
+                            Params = res
+                        };
                         OnNotificationReceived(args);
                     }
 
@@ -278,13 +244,6 @@ namespace Neovim
                     );
             }
         }
-        private void PrepareAsyncState()
-        {
-            _outputReady = new AsyncCallback(OutputCallback);
-            _outputState = new AsyncState(_standardOutput, _outputBuffer);
-            _errorReady = new AsyncCallback(ErrorCallback);
-            _errorState = new AsyncState(_standardError, _errorBuffer);
-        }
     }
 
     public class MsgPackNotificationEventArgs : EventArgs
@@ -297,21 +256,11 @@ namespace Neovim
     {
         public AsyncState(StreamReader stream, byte[] buffer)
         {
-            _stream = stream;
-            _buffer = buffer;
+            Stream = stream;
+            Buffer = buffer;
         }
 
-        public StreamReader Stream
-        {
-            get { return _stream; }
-        }
-
-        public byte[] Buffer
-        {
-            get { return _buffer; }
-        }
-
-        protected StreamReader _stream;
-        protected byte[] _buffer;
+        public StreamReader Stream { get; }
+        public byte[] Buffer { get; }
     }
 }

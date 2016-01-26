@@ -76,8 +76,10 @@
     <Compile Include="Input.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MessagePackObject.cs" />
     <Compile Include="MsgPackIO.cs" />
     <Compile Include="NeovimClient.cs" />
+    <Compile Include="NeovimConnector.cs" />
     <Compile Include="NotificationParser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
